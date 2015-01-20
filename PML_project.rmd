@@ -1,0 +1,76 @@
+---
+title: "PML-writeup"
+author: "Caroliem"
+date: "Sunday, January 18, 2015"
+output: html_document
+---
+
+## introduction & summary##
+This report predict the manner in which person performed their exercise, using data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+## Data loading and analysis##
+First loading required packages and data.
+```{r}
+library(caret)
+```
+
+Then load data and do some exploratory data analysis. The files can be downloaded from:
+- https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv for training
+- https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv for testing.
+```{r,cache=TRUE}
+train <- read.csv('pml-training.csv' , na.strings=c("NA",""))
+test <- read.csv('pml-testing.csv' , na.strings=c("NA",""))
+
+## explorary data analysis
+str(train)
+str(train$classe)
+dim(train)
+plot(train$classe, main = "histogram classe")
+```
+As we see there are lots of variabrles with NA's lets remove those columns with more than 10% NA's. Also remove columns related to index, username or timestamp
+```{r}
+train <- train[,7:160]
+test <- test[,7:160]
+NoNa <- apply(!is.na(train),2,sum)>(19622-0.1*19622)
+train <- train[,NoNa]
+test <- test[,NoNa]
+dim(train)
+```
+ 
+As I was not able to run a mode wit 19622 observation, so for speed I needed to reduced the training set to only include 25%
+```{r}
+InTrain <- createDataPartition(y=train$classe, p=0.25,list=FALSE)
+trainset <- train[InTrain,]
+testset <- train[-InTrain,]
+```
+For the training we use a 5-fold cross validation. As we already need to reduce the training set, we don't make k greater than 5, in order to avoid the sample set become to small. 
+```{r}
+control <- trainControl(method = "cv", number = 5)
+```
+
+As boosting and random forest are the most accurate models, we are using both and check accuracy.
+```{r}
+#randomforest
+set.seed(32333)
+fitrf <- train(classe ~  ., data = trainset, method = "rf", proxy=TRUE, trControl=control)
+fitrf$finalModel
+print(fitrf)
+predictionsrf <- predict(fitrf, trainset)
+confusionMatrix(predictionsrf ,trainset$classe)
+
+#gbm
+set.seed(32333)
+fitb <- train(classe ~  ., data = trainset, method = "gbm",  trControl=control,verbose=FALSE)
+fitb$finalModel
+print(fitb)
+predictionsb <- predict(fitb, train)
+confusionMatrix(predictionsb ,train$classe)
+```
+Accuracy of rf model is better so lets use the Random forest model.
+As we only used part of the training data set for prediction we can use the other part for testing and estimating the out of sample error.
+```{r}
+predictionstest <- predict(fitrf, testset)
+confusionMatrix(predictionstest ,testset$classe)
+outOfSampleError <- 1-sum(predictionstest == testset$classe)/length(predictionstest)
+print(outOfSampleError)
+```
