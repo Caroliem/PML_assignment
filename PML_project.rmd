@@ -2,7 +2,7 @@
 title: "PML-writeup"
 author: "Caroliem"
 date: "Sunday, January 18, 2015"
-output: html_document
+output: pdf_document
 ---
 
 ## introduction & summary##
@@ -17,7 +17,7 @@ library(caret)
 Then load data and do some exploratory data analysis. The files can be downloaded from:
 - https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv for training
 - https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv for testing.
-```{r,cache=TRUE}
+```{r}
 train <- read.csv('pml-training.csv' , na.strings=c("NA",""))
 test <- read.csv('pml-testing.csv' , na.strings=c("NA",""))
 
@@ -37,9 +37,9 @@ test <- test[,NoNa]
 dim(train)
 ```
  
-As I was not able to run a mode wit 19622 observation, so for speed I needed to reduced the training set to only include 25%
+As I was not able to run a mode wit 19622 observation, so for speed I needed to reduced the training set to only include 45%
 ```{r}
-InTrain <- createDataPartition(y=train$classe, p=0.25,list=FALSE)
+InTrain <- createDataPartition(y=train$classe, p=0.45,list=FALSE)
 trainset <- train[InTrain,]
 testset <- train[-InTrain,]
 ```
@@ -53,20 +53,26 @@ As boosting and random forest are the most accurate models, we are using both an
 #randomforest
 set.seed(32333)
 fitrf <- train(classe ~  ., data = trainset, method = "rf", proxy=TRUE, trControl=control)
-fitrf$finalModel
-print(fitrf)
-predictionsrf <- predict(fitrf, trainset)
-confusionMatrix(predictionsrf ,trainset$classe)
 
 #gbm
 set.seed(32333)
 fitb <- train(classe ~  ., data = trainset, method = "gbm",  trControl=control,verbose=FALSE)
 fitb$finalModel
-print(fitb)
-predictionsb <- predict(fitb, train)
-confusionMatrix(predictionsb ,train$classe)
 ```
-Accuracy of rf model is better so lets use the Random forest model.
+Let's compare accuracy of both models:
+```{r}
+results <- data.frame(method = c(fitrf$method,fitb$method), 
+                      accuracy=c( fitrf$results[fitrf$results$mtry %in% fitrf$bestTune,2],
+                                  tail(fitb$results[order(fitb$results$Accuracy),],1)$Accuracy)
+                      )
+results
+```
+Accuracy of rf model is better so lets use and view the Random forest model.
+```{r}
+fitrf$finalModel
+predictionsrf <- predict(fitrf, trainset)
+confusionMatrix(predictionsrf ,trainset$classe)
+```
 As we only used part of the training data set for prediction we can use the other part for testing and estimating the out of sample error.
 ```{r}
 predictionstest <- predict(fitrf, testset)

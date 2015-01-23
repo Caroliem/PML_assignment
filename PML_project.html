@@ -188,8 +188,8 @@ train &lt;- train[,NoNa]
 test &lt;- test[,NoNa]
 dim(train)</code></pre>
 <pre><code>## [1] 19622    54</code></pre>
-<p>As I was not able to run a mode wit 19622 observation, so for speed I needed to reduced the training set to only include 25%</p>
-<pre class="r"><code>InTrain &lt;- createDataPartition(y=train$classe, p=0.25,list=FALSE)
+<p>As I was not able to run a mode wit 19622 observation, so for speed I needed to reduced the training set to only include 45%</p>
+<pre class="r"><code>InTrain &lt;- createDataPartition(y=train$classe, p=0.45,list=FALSE)
 trainset &lt;- train[InTrain,]
 testset &lt;- train[-InTrain,]</code></pre>
 <p>For the training we use a 5-fold cross validation. As we already need to reduce the training set, we don’t make k greater than 5, in order to avoid the sample set become to small.</p>
@@ -201,76 +201,6 @@ fitrf &lt;- train(classe ~  ., data = trainset, method = &quot;rf&quot;, proxy=T
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
-<pre class="r"><code>fitrf$finalModel</code></pre>
-<pre><code>## 
-## Call:
-##  randomForest(x = x, y = y, mtry = param$mtry, proxy = TRUE) 
-##                Type of random forest: classification
-##                      Number of trees: 500
-## No. of variables tried at each split: 27
-## 
-##         OOB estimate of  error rate: 1.12%
-## Confusion matrix:
-##      A   B   C   D   E  class.error
-## A 1394   0   0   0   1 0.0007168459
-## B   14 932   4   0   0 0.0189473684
-## C    0  12 842   2   0 0.0163551402
-## D    0   0   9 793   2 0.0136815920
-## E    0   2   1   8 891 0.0121951220</code></pre>
-<pre class="r"><code>print(fitrf)</code></pre>
-<pre><code>## Random Forest 
-## 
-## 4907 samples
-##   53 predictor
-##    5 classes: 'A', 'B', 'C', 'D', 'E' 
-## 
-## No pre-processing
-## Resampling: Cross-Validated (5 fold) 
-## 
-## Summary of sample sizes: 3926, 3925, 3926, 3927, 3924 
-## 
-## Resampling results across tuning parameters:
-## 
-##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
-##    2    0.9783975  0.9726674  0.003338453  0.004226567
-##   27    0.9849198  0.9809207  0.004346095  0.005501152
-##   53    0.9812511  0.9762760  0.005124478  0.006489462
-## 
-## Accuracy was used to select the optimal model using  the largest value.
-## The final value used for the model was mtry = 27.</code></pre>
-<pre class="r"><code>predictionsrf &lt;- predict(fitrf, trainset)
-confusionMatrix(predictionsrf ,trainset$classe)</code></pre>
-<pre><code>## Confusion Matrix and Statistics
-## 
-##           Reference
-## Prediction    A    B    C    D    E
-##          A 1395    0    0    0    0
-##          B    0  950    0    0    0
-##          C    0    0  856    0    0
-##          D    0    0    0  804    0
-##          E    0    0    0    0  902
-## 
-## Overall Statistics
-##                                      
-##                Accuracy : 1          
-##                  95% CI : (0.9992, 1)
-##     No Information Rate : 0.2843     
-##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
-##                                      
-##                   Kappa : 1          
-##  Mcnemar's Test P-Value : NA         
-## 
-## Statistics by Class:
-## 
-##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            1.0000   1.0000   1.0000   1.0000   1.0000
-## Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
-## Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
-## Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
-## Prevalence             0.2843   0.1936   0.1744   0.1638   0.1838
-## Detection Rate         0.2843   0.1936   0.1744   0.1638   0.1838
-## Detection Prevalence   0.2843   0.1936   0.1744   0.1638   0.1838
-## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000</code></pre>
 <pre class="r"><code>#gbm
 set.seed(32333)
 fitb &lt;- train(classe ~  ., data = trainset, method = &quot;gbm&quot;,  trControl=control,verbose=FALSE)</code></pre>
@@ -290,116 +220,103 @@ fitb &lt;- train(classe ~  ., data = trainset, method = &quot;gbm&quot;,  trCont
 <pre class="r"><code>fitb$finalModel</code></pre>
 <pre><code>## A gradient boosted model with multinomial loss function.
 ## 150 iterations were performed.
-## There were 53 predictors of which 45 had non-zero influence.</code></pre>
-<pre class="r"><code>print(fitb)</code></pre>
-<pre><code>## Stochastic Gradient Boosting 
+## There were 53 predictors of which 44 had non-zero influence.</code></pre>
+<p>Let’s compare accuracy of both models:</p>
+<pre class="r"><code>results &lt;- data.frame(method = c(fitrf$method,fitb$method), 
+                      accuracy=c( fitrf$results[fitrf$results$mtry %in% fitrf$bestTune,2],
+                                  tail(fitb$results[order(fitb$results$Accuracy),],1)$Accuracy)
+                      )
+results</code></pre>
+<pre><code>##   method  accuracy
+## 1     rf 0.9933193
+## 2    gbm 0.9840356</code></pre>
+<p>Accuracy of rf model is better so lets use and view the Random forest model.</p>
+<pre class="r"><code>fitrf$finalModel</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry, proxy = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 27
 ## 
-## 4907 samples
-##   53 predictor
-##    5 classes: 'A', 'B', 'C', 'D', 'E' 
-## 
-## No pre-processing
-## Resampling: Cross-Validated (5 fold) 
-## 
-## Summary of sample sizes: 3925, 3925, 3925, 3926, 3927 
-## 
-## Resampling results across tuning parameters:
-## 
-##   interaction.depth  n.trees  Accuracy   Kappa      Accuracy SD
-##   1                   50      0.7523952  0.6858421  0.011119114
-##   1                  100      0.8235141  0.7766595  0.010392454
-##   1                  150      0.8610117  0.8240886  0.005884545
-##   2                   50      0.8762923  0.8433281  0.009746029
-##   2                  100      0.9288736  0.9099315  0.008271678
-##   2                  150      0.9502712  0.9370524  0.010458270
-##   3                   50      0.9188900  0.8972774  0.009112174
-##   3                  100      0.9600574  0.9494463  0.008628385
-##   3                  150      0.9751353  0.9685416  0.007826279
-##   Kappa SD   
-##   0.013843599
-##   0.012989662
-##   0.007372218
-##   0.012318367
-##   0.010460123
-##   0.013237494
-##   0.011517332
-##   0.010924356
-##   0.009901018
-## 
-## Tuning parameter 'shrinkage' was held constant at a value of 0.1
-## Accuracy was used to select the optimal model using  the largest value.
-## The final values used for the model were n.trees = 150,
-##  interaction.depth = 3 and shrinkage = 0.1.</code></pre>
-<pre class="r"><code>predictionsb &lt;- predict(fitb, train)
-confusionMatrix(predictionsb ,train$classe)</code></pre>
+##         OOB estimate of  error rate: 0.51%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 2510    0    0    0    1 0.0003982477
+## B    5 1699    4    1    0 0.0058513751
+## C    0    9 1531    0    0 0.0058441558
+## D    0    1   13 1433    1 0.0103591160
+## E    0    1    0    9 1614 0.0061576355</code></pre>
+<pre class="r"><code>predictionsrf &lt;- predict(fitrf, trainset)
+confusionMatrix(predictionsrf ,trainset$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 5549   30    0    0    2
-##          B   24 3718   73   10   18
-##          C    1   47 3328   57   17
-##          D    6    0   20 3137   39
-##          E    0    2    1   12 3531
+##          A 2511    0    0    0    0
+##          B    0 1709    0    0    0
+##          C    0    0 1540    0    0
+##          D    0    0    0 1448    0
+##          E    0    0    0    0 1624
 ## 
 ## Overall Statistics
-##                                           
-##                Accuracy : 0.9817          
-##                  95% CI : (0.9797, 0.9835)
-##     No Information Rate : 0.2844          
-##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
-##                                           
-##                   Kappa : 0.9769          
-##  Mcnemar's Test P-Value : 6.868e-14       
+##                                      
+##                Accuracy : 1          
+##                  95% CI : (0.9996, 1)
+##     No Information Rate : 0.2843     
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
+##                                      
+##                   Kappa : 1          
+##  Mcnemar's Test P-Value : NA         
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            0.9944   0.9792   0.9725   0.9754   0.9789
-## Specificity            0.9977   0.9921   0.9925   0.9960   0.9991
-## Pos Pred Value         0.9943   0.9675   0.9646   0.9797   0.9958
-## Neg Pred Value         0.9978   0.9950   0.9942   0.9952   0.9953
-## Prevalence             0.2844   0.1935   0.1744   0.1639   0.1838
-## Detection Rate         0.2828   0.1895   0.1696   0.1599   0.1800
-## Detection Prevalence   0.2844   0.1959   0.1758   0.1632   0.1807
-## Balanced Accuracy      0.9961   0.9856   0.9825   0.9857   0.9890</code></pre>
-<p>Accuracy of rf model is better so lets use the Random forest model. As we only used part of the training data set for prediction we can use the other part for testing and estimating the out of sample error.</p>
+## Sensitivity            1.0000   1.0000   1.0000   1.0000   1.0000
+## Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
+## Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+## Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+## Prevalence             0.2843   0.1935   0.1744   0.1639   0.1839
+## Detection Rate         0.2843   0.1935   0.1744   0.1639   0.1839
+## Detection Prevalence   0.2843   0.1935   0.1744   0.1639   0.1839
+## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000</code></pre>
+<p>As we only used part of the training data set for prediction we can use the other part for testing and estimating the out of sample error.</p>
 <pre class="r"><code>predictionstest &lt;- predict(fitrf, testset)
 confusionMatrix(predictionstest ,testset$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 4185   24    0    0    0
-##          B    0 2809   56    0    7
-##          C    0   13 2500   51    1
-##          D    0    1   10 2349   19
-##          E    0    0    0   12 2678
+##          A 3068   11    0    0    0
+##          B    1 2073   12    0    1
+##          C    0    3 1870   17    0
+##          D    0    1    0 1751    7
+##          E    0    0    0    0 1975
 ## 
 ## Overall Statistics
 ##                                           
-##                Accuracy : 0.9868          
-##                  95% CI : (0.9848, 0.9886)
+##                Accuracy : 0.9951          
+##                  95% CI : (0.9936, 0.9963)
 ##     No Information Rate : 0.2844          
 ##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
 ##                                           
-##                   Kappa : 0.9833          
+##                   Kappa : 0.9938          
 ##  Mcnemar's Test P-Value : NA              
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            1.0000   0.9867   0.9743   0.9739   0.9900
-## Specificity            0.9977   0.9947   0.9946   0.9976   0.9990
-## Pos Pred Value         0.9943   0.9781   0.9747   0.9874   0.9955
-## Neg Pred Value         1.0000   0.9968   0.9946   0.9949   0.9978
+## Sensitivity            0.9997   0.9928   0.9936   0.9904   0.9960
+## Specificity            0.9986   0.9984   0.9978   0.9991   1.0000
+## Pos Pred Value         0.9964   0.9933   0.9894   0.9955   1.0000
+## Neg Pred Value         0.9999   0.9983   0.9987   0.9981   0.9991
 ## Prevalence             0.2844   0.1935   0.1744   0.1639   0.1838
-## Detection Rate         0.2844   0.1909   0.1699   0.1596   0.1820
-## Detection Prevalence   0.2860   0.1952   0.1743   0.1617   0.1828
-## Balanced Accuracy      0.9989   0.9907   0.9845   0.9857   0.9945</code></pre>
+## Detection Rate         0.2843   0.1921   0.1733   0.1623   0.1830
+## Detection Prevalence   0.2854   0.1934   0.1752   0.1630   0.1830
+## Balanced Accuracy      0.9991   0.9956   0.9957   0.9947   0.9980</code></pre>
 <pre class="r"><code>outOfSampleError &lt;- 1-sum(predictionstest == testset$classe)/length(predictionstest)
 print(outOfSampleError)</code></pre>
-<pre><code>## [1] 0.01318383</code></pre>
+<pre><code>## [1] 0.004911956</code></pre>
 </div>
 
 
